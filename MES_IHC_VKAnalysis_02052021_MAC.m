@@ -2,21 +2,29 @@ clear all; clc;
 cd(userpath);
 tic
 %% Editables %%
-Folder = 'Filepath/';
+Folder = 'FILEPATH/';
 
 BotCrop = 16; %Number of pixels to remove from the bottom of the image to avoid the weird camera error.
-Fig_Show = 0; %Do you want to show an image of the foci segmentation analysis? (1=yes,0=no)
+Fig_Show = 1; %Do you want to show an image of the foci segmentation analysis? (1=yes,0=no)
 Fig_Save = 0; %Do you want to save an image of the foci segmentation analysis? (1=yes,0=no)
 
 VK_StdDevThresh = 3; %How far from the average intensity does a pixel value need to be to pass threshold?
 VK_MinArea = 5; %Minimum number of pixels for VK spot to be detected.
-VK_AreaSplitSize = 20000; %Area threshold where big and small are split.
 VK_EccentricityMax = 0.99; %How non-circular can VK spots be? This helps filter out out-of-focus cell edges. (0=line,1=circle)
 
+VK_AreaSplitSize(1,1) = 22360; %Area threshold where big and small are split.
+VK_AreaSplitSize(2,1) = 44717;
+VK_AreaSplitSize(3,1) = 89435;
 %% Analysis Pre-Analysis and Metadata (Don't touch) %%
 
 cd(Folder);
 srcFiles = dir('*.jpg');
+
+for u = 1:length(srcFiles)
+srcFiles_HiddenFilter(u,1) = srcFiles(u).name(1) == '.';
+end
+
+srcFiles = srcFiles(~srcFiles_HiddenFilter);
 
 START = 1; %At what image do you want to start analysis?
 FINISH = length(srcFiles); %At what image do you want to end analysis?
@@ -146,6 +154,7 @@ if Fig_Show == 1
         plot(bb(:,2),bb(:,1),'r','LineWidth',1); %Red-bordered objects were INCLUDED in analysis.
     end
     hold off
+    drawnow;
     
     if Fig_Save == 1
         ('Saving Figure Image...');
@@ -170,13 +179,26 @@ end
 
 disp('Collating Results and Binning VK Areas...');
 Results_SizeSplit.VKAreasAll = VKAreas_All;
-Results_SizeSplit.BigFilter = VKAreas_All>=VK_AreaSplitSize;
-Results_SizeSplit.SmallFilter = VKAreas_All<VK_AreaSplitSize;
-Results_SizeSplit.BigAreas = VKAreas_All(Results_SizeSplit.BigFilter);
-Results_SizeSplit.SmallAreas = VKAreas_All(Results_SizeSplit.SmallFilter);
-Results_SizeSplit.SumAreaBig = sum(Results_SizeSplit.BigAreas);
-Results_SizeSplit.SumAreaSmall = sum(Results_SizeSplit.SmallAreas);
-Results_SizeSplit.TotalArea = Results_SizeSplit.SumAreaSmall + Results_SizeSplit.SumAreaBig;
+Results_SizeSplit.AreaFilter1 = VKAreas_All>=VK_AreaSplitSize(1,1);
+Results_SizeSplit.AreaFilter2 = VKAreas_All>=VK_AreaSplitSize(2,1);
+Results_SizeSplit.AreaFilter3 = VKAreas_All>=VK_AreaSplitSize(3,1);
+
+Results_SizeSplit.BigAreas1 = VKAreas_All(Results_SizeSplit.AreaFilter1);
+Results_SizeSplit.SmallAreas1 = VKAreas_All(~Results_SizeSplit.AreaFilter1);
+Results_SizeSplit.SumAreaBig1 = sum(Results_SizeSplit.BigAreas1);
+Results_SizeSplit.SumAreaSmall1 = sum(Results_SizeSplit.SmallAreas1);
+
+Results_SizeSplit.BigAreas2 = VKAreas_All(Results_SizeSplit.AreaFilter2);
+Results_SizeSplit.SmallAreas2 = VKAreas_All(~Results_SizeSplit.AreaFilter2);
+Results_SizeSplit.SumAreaBig2 = sum(Results_SizeSplit.BigAreas2);
+Results_SizeSplit.SumAreaSmall2 = sum(Results_SizeSplit.SmallAreas2);
+
+Results_SizeSplit.BigAreas3 = VKAreas_All(Results_SizeSplit.AreaFilter3);
+Results_SizeSplit.SmallAreas3 = VKAreas_All(~Results_SizeSplit.AreaFilter3);
+Results_SizeSplit.SumAreaBig3 = sum(Results_SizeSplit.BigAreas3);
+Results_SizeSplit.SumAreaSmall3 = sum(Results_SizeSplit.SmallAreas3);
+
+Results_SizeSplit.TotalArea = Results_SizeSplit.SumAreaSmall1 + Results_SizeSplit.SumAreaBig1;
 close all
 
 cd(Folder); cd Analysis;
