@@ -2,9 +2,10 @@ clear all; clc;
 cd(userpath);
 tic
 %% Editables %%
-Folder = 'G:\VK foci_Doug_20210209\Humans\Male\rep3\';
+Folder = 'G:\VK foci_Doug_20210209\Humans\Male\rep1\';
 
 BotCrop = 16; %Number of pixels to remove from the bottom of the image to avoid the weird camera error.
+PixConversion = 2.73; %What is pixels:micron ratio?
 
 Fig_Show = 1; %Do you want to show an image of the foci segmentation analysis? (1=yes,0=no)
 Fig_Save = 0; %Do you want to save an image of the foci segmentation analysis? (1=yes,0=no)
@@ -13,8 +14,13 @@ VK_StdDevThresh = 5; %How far from the average intensity does a pixel value need
 VK_MinArea = 10; %Minimum number of pixels for VK spot to be detected.
 VK_EccentricityMax = 0.99; %How non-circular can VK spots be? This helps filter out out-of-focus cell edges. (0=line,1=circle)
 
-VK_AreaBins = [500 2000 8000 32000 128000 512000];
+VK_AreaBinsMicrons = [500 2000 8000 32000 128000 512000];
+
 %% Analysis Pre-Analysis and Metadata (Don't touch) %%
+
+for vk = 1:numel(VK_AreaBinsMicrons)
+    VK_AreaBinsPix(1,vk) = (sqrt(VK_AreaBinsMicrons(1,vk))*PixConversion)^2;
+end
 
 cd(Folder);
 srcFiles = dir('*.jpg');
@@ -87,7 +93,7 @@ for f = START:FINISH
     Results(f,1).FileName = srcFiles(f).name;
     Results(f,1).Settings.VKMinArea = VK_MinArea;
     Results(f,1).Settings.VKStdDevThresh = VK_StdDevThresh;
-    Results(f,1).Settings.VKAreaBins = VK_AreaBins;
+    Results(f,1).Settings.VKAreaBins = VK_AreaBinsPix;
     Results(f,1).Settings.VKEccentricityMax = VK_EccentricityMax;
     
     Results(f,1).Settings.RedThresh = Threshold.AllImageThresh.Red;
@@ -183,17 +189,18 @@ end
 end
 
 disp('Collating Results and Binning VK Areas...');
-NumAreaBins = numel(VK_AreaBins);
+NumAreaBins = numel(VK_AreaBinsPix);
 
 Results_SizeSplit.VKAreasAll = VKAreas_All;
-Results_SizeSplit.IntegratedVKAreasAll = sum(Results_SizeSplit.VKAreasAll);
+Results_SizeSplit.IntegratedVKAreasAllPixels = sum(Results_SizeSplit.VKAreasAll);
+Results_SizeSplit.IntegratedVKAreasAllMicrons = (sqrt(Results_SizeSplit.IntegratedVKAreasAllPixels)/PixConversion)^2;
 for b = 1:NumAreaBins
     if b == 1
-        Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b) = VKAreas_All<=VK_AreaBins(b);
+        Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b) = VKAreas_All<=VK_AreaBinsPix(b);
     elseif b>1 && b<NumAreaBins
-        Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b) = VKAreas_All<=VK_AreaBins(b) & VKAreas_All>VK_AreaBins(b-1);
+        Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b) = VKAreas_All<=VK_AreaBinsPix(b) & VKAreas_All>VK_AreaBinsPix(b-1);
     elseif b == NumAreaBins
-        Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b) = VKAreas_All>=VK_AreaBins(b);
+        Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b) = VKAreas_All>=VK_AreaBinsPix(b);
     else
     end
 end
@@ -204,12 +211,10 @@ for b = 1:NumAreaBins
     else
         Results_SizeSplit.IntegratedSplitAreas(1,b) = 0;
     end
-    
-%     Results_SizeSplit.IntegratedSplitAreas(1,b) = sum(Results_SizeSplit.SplitAreas(:,b));
-    Results_SizeSplit.PercentofTotalArea(1,b) = Results_SizeSplit.IntegratedSplitAreas(1,b)/Results_SizeSplit.IntegratedVKAreasAll*100;
+    Results_SizeSplit.PercentofTotalArea(1,b) = Results_SizeSplit.IntegratedSplitAreas(1,b)/Results_SizeSplit.IntegratedVKAreasAllPixels*100;
 end
 
-%close all
+close all
 
 cd(Folder); cd Analysis;
 save('AnalysisResults.mat','Results','-v7.3');
