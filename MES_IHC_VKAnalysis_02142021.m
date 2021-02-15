@@ -2,7 +2,7 @@ clear all; clc;
 cd(userpath);
 tic
 %% Editables %%
-Folder = 'G:\VK foci_Doug_20210209\Humans\Male\rep1\';
+Folder = 'G:\VK foci_Doug_20210209\Hydrogels\Male\Control\rep 4\';
 
 BotCrop = 16; %Number of pixels to remove from the bottom of the image to avoid the weird camera error.
 PixConversion = 2.73; %What is pixels:micron ratio?
@@ -10,7 +10,7 @@ PixConversion = 2.73; %What is pixels:micron ratio?
 Fig_Show = 1; %Do you want to show an image of the foci segmentation analysis? (1=yes,0=no)
 Fig_Save = 0; %Do you want to save an image of the foci segmentation analysis? (1=yes,0=no)
 
-VK_StdDevThresh = 5; %How far from the average intensity does a pixel value need to be to pass threshold?
+VK_StdDevThresh = 8; %How far from the average intensity does a pixel value need to be to pass threshold?
 VK_MinArea = 10; %Minimum number of pixels for VK spot to be detected.
 VK_EccentricityMax = 0.99; %How non-circular can VK spots be? This helps filter out out-of-focus cell edges. (0=line,1=circle)
 
@@ -194,18 +194,20 @@ NumAreaBins = numel(VK_AreaBinsPix);
 Results_SizeSplit.VKAreasAll = VKAreas_All;
 Results_SizeSplit.IntegratedVKAreasAllPixels = sum(Results_SizeSplit.VKAreasAll);
 Results_SizeSplit.IntegratedVKAreasAllMicrons = (sqrt(Results_SizeSplit.IntegratedVKAreasAllPixels)/PixConversion)^2;
+Results_SizeSplit.IntegratedVKAreaAllMicronsPerField = Results_SizeSplit.IntegratedVKAreasAllMicrons/FINISH;
 for b = 1:NumAreaBins
     if b == 1
         Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b) = VKAreas_All<=VK_AreaBinsPix(b);
     elseif b>1 && b<NumAreaBins
         Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b) = VKAreas_All<=VK_AreaBinsPix(b) & VKAreas_All>VK_AreaBinsPix(b-1);
     elseif b == NumAreaBins
-        Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b) = VKAreas_All>=VK_AreaBinsPix(b);
+        Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b) = VKAreas_All<=VK_AreaBinsPix(b) & VKAreas_All>VK_AreaBinsPix(b-1);
+        Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b+1) = VKAreas_All>=VK_AreaBinsPix(b);
     else
     end
 end
 
-for b = 1:NumAreaBins
+for b = 1:NumAreaBins+1
     if sum(Results_SizeSplit.AreaFilter(:,b)) > 0
         Results_SizeSplit.IntegratedSplitAreas(1,b) = sum(VKAreas_All(Results_SizeSplit.AreaFilter(1:size(VKAreas_All,1),b)));
     else
